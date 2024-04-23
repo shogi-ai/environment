@@ -1,7 +1,7 @@
+"""Example environment"""
+
 import gymnasium as gym
 import pygame
-
-from example.env import MazeGameEnv
 
 # Register the environment
 gym.register(

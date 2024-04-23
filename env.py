@@ -1,7 +1,6 @@
 import random
 
 import gymnasium as gym
-import numpy as np
 from gymnasium import spaces
 import shogi
 
@@ -62,7 +61,7 @@ class ShogiEnv(gym.Env):
         elif player == 1:
             pieces = self._player_1()
         else:
-            raise Exception("Player not found")
+            raise ModuleNotFoundError("Player not found")
 
         def select_move(board, pieces):
             # chose random piece
@@ -101,17 +100,17 @@ class ShogiEnv(gym.Env):
             truncated = True
 
         # Direct if game is won? reward + 1, terminated = True
-        if self.board.is_game_over():
-            reward = 1
+        if self.board.is_checkmate():
+            reward = 10
             terminated = True
-        if self.board.is_stalemate():
-            reward = 0.5
+        elif self.board.is_stalemate():
+            reward = 2
             terminated = True
 
         return self._get_observation(), reward, terminated, truncated, {}
 
     def _get_observation(self):
-        return self.board.pieces
+        return [self.board.piece_at(i) for i in range(81)]
 
     def render(self):
         print("=" * 25)
