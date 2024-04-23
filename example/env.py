@@ -1,3 +1,5 @@
+"""Example environment"""
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -5,6 +7,8 @@ import pygame
 
 
 class MazeGameEnv(gym.Env):
+    """Example environment"""
+
     def __init__(self, maze):
         super(MazeGameEnv, self).__init__()
         self.maze = np.array(maze)  # Maze represented as a 2D numpy array
