@@ -3,10 +3,9 @@
 import random
 import shogi
 
+import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
-from shogi import Piece
-
 
 class ShogiEnv(gym.Env):
     """
@@ -25,9 +24,7 @@ class ShogiEnv(gym.Env):
     Methods:
         __init__: Initialize the Shogi environment.
         reset: Reset the environment to its initial state.
-        _player_0: Get indices of pieces belonging to player 0.
-        _player_1: Get indices of pieces belonging to player 1.
-        sample_action: Sample a random legal move for the specified player.
+        sample_action: Sample a random legal move.
         step: Take a step in the environment based on the action.
         _get_observation: Get the current observation of the Shogi board.
         render: Render the current state of the Shogi board.
@@ -78,39 +75,7 @@ class ShogiEnv(gym.Env):
         self.move = 0
         return (self._get_observation(),)
 
-    def _player_0(self):
-        """
-        Get indices of pieces belonging to player 0.
-
-        Returns:
-            list: Indices of pieces belonging to player 0.
-        """
-        pieces = [self.board.piece_at(i) for i in range(81)]
-
-        indices = []
-        for i, char in enumerate(pieces):
-            if char is not None:
-                if char.color == 0:
-                    indices.append(i)
-        return indices
-
-    def _player_1(self):
-        """
-        Get indices of pieces belonging to player 1.
-
-        Returns:
-            list: Indices of pieces belonging to player 1.
-        """
-        pieces = [self.board.piece_at(i) for i in range(81)]
-
-        indices = []
-        for i, char in enumerate(pieces):
-            if char is not None:
-                if char.color == 1:
-                    indices.append(i)
-        return indices
-
-    def sample_action(self, player: int):
+    def sample_action(self):
         """
         Sample a random legal move for the specified player.
 
@@ -120,23 +85,13 @@ class ShogiEnv(gym.Env):
         Returns:
             shogi.Move: Random legal move for the specified player.
         """
-        # Get all piece locations for player
-        if player == 0:
-            pieces = self._player_0()
-        elif player == 1:
-            pieces = self._player_1()
-        else:
-            raise ModuleNotFoundError("Player not found")
 
-        def select_move(pieces: list[Piece]):
-            """Select a piece and a random move"""
-            # chose random piece
-            piece = random.choice(pieces)
-
+        def select_move():
+            """Select a random move"""
             # Move to random legal position
             legal_moves = self.board.generate_legal_moves()
             piece_legal_moves = [
-                move for move in legal_moves if move.from_square == piece
+                move for move in legal_moves
             ]
 
             # No legal moves for this piece
@@ -147,7 +102,7 @@ class ShogiEnv(gym.Env):
             return random.choice(piece_legal_moves)
 
         while True:
-            piece_to = select_move(pieces)
+            piece_to = select_move()
             if piece_to is not None:
                 return piece_to
 
@@ -191,7 +146,7 @@ class ShogiEnv(gym.Env):
         Returns:
             list: List representing the current state of the Shogi board.
         """
-        return [self.board.piece_at(i) for i in range(81)]
+        return np.array(self.board.piece_at(i) for i in range(81))
 
     def render(self):
         """

@@ -14,14 +14,14 @@ env.render()
 
 while True:
     # Player 1
-    action = env.sample_action(0)
+    action = env.sample_action()
     obs, reward, terminated, truncated, _ = env.step(action)
     if terminated or truncated:
         break
     env.render()
 
     # Player 2
-    action = env.sample_action(1)
+    action = env.sample_action()
     obs, reward, terminated, truncated, _ = env.step(action)
     if terminated or truncated:
         break
