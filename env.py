@@ -6,7 +6,7 @@ import shogi
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
-from shogi import Piece
+
 
 class ShogiEnv(gym.Env):
     """
@@ -29,7 +29,6 @@ class ShogiEnv(gym.Env):
         step: Take a step in the environment based on the action.
         _get_observation: Get the current observation of the Shogi board.
         render: Render the current state of the Shogi board.
-        get_bitboard: Get the current bitboard of the Shogi board.
     """
 
     def __init__(self):
@@ -54,6 +53,7 @@ class ShogiEnv(gym.Env):
 
         # Keep track of moves
         self.move = 0
+        self.max_moves = 200
 
     def reset(
         self,
@@ -91,10 +91,7 @@ class ShogiEnv(gym.Env):
         def select_move():
             """Select a random move"""
             # Move to random legal position
-            legal_moves = self.board.generate_legal_moves()
-            piece_legal_moves = [
-                move for move in legal_moves
-            ]
+            piece_legal_moves = self.board.generate_legal_moves()
 
             # No legal moves for this piece
             if len(piece_legal_moves) == 0:
@@ -128,7 +125,7 @@ class ShogiEnv(gym.Env):
         terminated = False
         truncated = False
 
-        if self.move >= 200:
+        if self.move >= self.max_moves:
             truncated = True
 
         # Direct if game is won? reward + 1, terminated = True
@@ -143,34 +140,34 @@ class ShogiEnv(gym.Env):
 
     def _get_observation(self):
         """
-        Get the current observation of the Shogi board.
-
-        Returns:
-            list: List representing the current state of the Shogi board.
-        """
-        return np.array(self.board.piece_at(i) for i in range(81))
-
-    def render(self):
-        """
-        Render the current state of the Shogi board.
-        """
-        print("=" * 25)
-        print(self.board)
-
-    def get_bitboard(self):
-        """
         Get the current bitboard of the Shogi board.
 
         Returns:
             list: List representing the current bitboard of the Shogi board.
         """
-        PIECE_SYMBOLS = ["", "p", "l", "n", "s", "g", "b", "r", "k", "+p", "+l", "+n", "+s", "+b", "+r"]
+        PIECE_SYMBOLS = [
+            "",
+            "p",
+            "l",
+            "n",
+            "s",
+            "g",
+            "b",
+            "r",
+            "k",
+            "+p",
+            "+l",
+            "+n",
+            "+s",
+            "+b",
+            "+r",
+        ]
         pieces_in_board = [self.board.piece_at(i) for i in range(81)]
         indices = []
 
         def print_bitboard(piece, pieces_in_board):
             output = []
-            for i, x in enumerate(pieces_in_board):
+            for _, x in enumerate(pieces_in_board):
                 if str(x).lower() == piece:
                     output.append(1)
                 else:
@@ -178,8 +175,15 @@ class ShogiEnv(gym.Env):
             return np.reshape(output, (9, 9))
 
         for piece in PIECE_SYMBOLS:
-            if(piece == ""):
+            if piece == "":
                 continue
             indices.append(print_bitboard(piece, pieces_in_board))
-            
+
         return np.array(indices)
+
+    def render(self):
+        """
+        Render the current state of the Shogi board.
+        """
+        print("=" * 25)
+        print(self.board)
