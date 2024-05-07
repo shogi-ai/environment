@@ -7,6 +7,8 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
+from reward_table import PIECE_REWARDS, CHECKMATE, STALEMATE
+
 
 class ShogiEnv(gym.Env):
     """
@@ -81,9 +83,6 @@ class ShogiEnv(gym.Env):
         """
         Sample a random legal move for the specified player.
 
-        Args:
-            player (int): Player ID (0 or 1).
-
         Returns:
             shogi.Move: Random legal move for the specified player.
         """
@@ -91,7 +90,8 @@ class ShogiEnv(gym.Env):
         def select_move():
             """Select a random move"""
             # Move to random legal position
-            piece_legal_moves = self.board.generate_legal_moves()
+            generator = self.board.generate_legal_moves()
+            piece_legal_moves = [move for move in generator]
 
             # No legal moves for this piece
             if len(piece_legal_moves) == 0:
@@ -119,22 +119,30 @@ class ShogiEnv(gym.Env):
             raise ValueError("Illegal move")
 
         self.move += 1
-        self.board.push(action)
-
         reward = 0.0
         terminated = False
         truncated = False
+
+        piece = self.board.piece_at(action.to_square)
+        if piece:
+            piece_name = self._get_piece_name(piece.piece_type)
+            reward = PIECE_REWARDS[piece_name]
+
+        self.board.push(action)
 
         if self.move >= self.max_moves:
             truncated = True
 
         # Direct if game is won? reward + 1, terminated = True
         if self.board.is_checkmate():
-            reward = 10
+            reward = CHECKMATE
             terminated = True
         elif self.board.is_stalemate():
-            reward = 2
+            reward = STALEMATE
             terminated = True
+
+        if reward:
+            print(reward)
 
         return self._get_observation(), reward, terminated, truncated, {}
 
@@ -145,7 +153,7 @@ class ShogiEnv(gym.Env):
         Returns:
             list: List representing the current bitboard of the Shogi board.
         """
-        PIECE_SYMBOLS = [
+        piece_symbols = [
             "",
             "p",
             "l",
@@ -174,7 +182,7 @@ class ShogiEnv(gym.Env):
                     output.append(0)
             return np.reshape(output, (9, 9))
 
-        for piece in PIECE_SYMBOLS:
+        for piece in piece_symbols:
             if piece == "":
                 continue
             indices.append(print_bitboard(piece, pieces_in_board))
@@ -187,3 +195,33 @@ class ShogiEnv(gym.Env):
         """
         print("=" * 25)
         print(self.board)
+
+    @staticmethod
+    def _get_piece_name(piece_type: int) -> str:
+        """
+        Get piece name based on piece type.
+
+        Args:
+            piece_type (int): The piece type you want the name of.
+
+        Return:
+            str: The name of the piece
+        """
+        piece_types = [
+            "PAWN",
+            "LANCE",
+            "KNIGHT",
+            "SILVER",
+            "GOLD",
+            "BISHOP",
+            "ROOK",
+            "KING",
+            "PROM_PAWN",
+            "PROM_LANCE",
+            "PROM_KNIGHT",
+            "PROM_SILVER",
+            "PROM_BISHOP",
+            "PROM_ROOK",
+        ]
+        piece = piece_types[piece_type - 1]
+        return piece
