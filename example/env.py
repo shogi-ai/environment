@@ -105,7 +105,8 @@ class MazeGameEnv(gym.Env):
                         np.array(self.current_pos)
                         == np.array([row, col]).reshape(-1, 1)
                     )
-                except Exception:
+                except Exception as e:
+                    print(e)
                     print("Initial state")
 
                 if self.maze[row, col] == "#":  # Obstacle
