@@ -6,6 +6,7 @@ import shogi
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
+from shogi import Piece
 
 class ShogiEnv(gym.Env):
     """
@@ -28,6 +29,7 @@ class ShogiEnv(gym.Env):
         step: Take a step in the environment based on the action.
         _get_observation: Get the current observation of the Shogi board.
         render: Render the current state of the Shogi board.
+        get_bitboard: Get the current bitboard of the Shogi board.
     """
 
     def __init__(self):
@@ -154,3 +156,30 @@ class ShogiEnv(gym.Env):
         """
         print("=" * 25)
         print(self.board)
+
+    def get_bitboard(self):
+        """
+        Get the current bitboard of the Shogi board.
+
+        Returns:
+            list: List representing the current bitboard of the Shogi board.
+        """
+        PIECE_SYMBOLS = ["", "p", "l", "n", "s", "g", "b", "r", "k", "+p", "+l", "+n", "+s", "+b", "+r"]
+        pieces_in_board = [self.board.piece_at(i) for i in range(81)]
+        indices = []
+
+        def print_bitboard(piece, pieces_in_board):
+            output = []
+            for i, x in enumerate(pieces_in_board):
+                if str(x).lower() == piece:
+                    output.append(1)
+                else:
+                    output.append(0)
+            return np.reshape(output, (9, 9))
+
+        for piece in PIECE_SYMBOLS:
+            if(piece == ""):
+                continue
+            indices.append(print_bitboard(piece, pieces_in_board))
+            
+        return np.array(indices)
