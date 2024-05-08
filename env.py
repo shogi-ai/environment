@@ -144,7 +144,7 @@ class ShogiEnv(gym.Env):
         if reward:
             print(reward)
 
-        return self._get_observation(), reward, terminated, truncated, {}
+        return (self._get_observation(),), reward, terminated, truncated, {}
 
     def _get_observation(self):
         """
