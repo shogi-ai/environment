@@ -31,6 +31,7 @@ class ShogiEnv(gym.Env):
         step: Take a step in the environment based on the action.
         _get_observation: Get the current observation of the Shogi board.
         render: Render the current state of the Shogi board.
+        mask_and_valid_moves: Get the mask and valid moves for the current player.
     """
 
     def __init__(self):
@@ -77,7 +78,7 @@ class ShogiEnv(gym.Env):
         """
         self.board = shogi.Board()
         self.move = 0
-        return (self._get_observation(),)
+        return self._get_observation()
 
     def sample_action(self):
         """
@@ -117,6 +118,8 @@ class ShogiEnv(gym.Env):
         """
         if action not in self.board.legal_moves:
             raise ValueError("Illegal move")
+        
+        state = self._get_observation()
 
         self.move += 1
         reward = 0.0
@@ -144,7 +147,7 @@ class ShogiEnv(gym.Env):
         if reward:
             print(reward)
 
-        return (self._get_observation(),), reward, terminated, truncated, {}
+        return self._get_observation(), reward, terminated, truncated, state, {}
 
     def _get_observation(self):
         """
@@ -187,7 +190,7 @@ class ShogiEnv(gym.Env):
                 continue
             indices.append(print_bitboard(piece, pieces_in_board))
 
-        return np.array(indices)
+        return (np.array(indices),)
 
     def render(self):
         """
@@ -195,6 +198,23 @@ class ShogiEnv(gym.Env):
         """
         print("=" * 25)
         print(self.board)
+
+    def mask_and_valid_moves(self):
+        """
+        Get the mask and valid moves for the current player.
+
+        Returns:
+            tuple: Tuple containing the mask and valid moves for the current player.
+        """
+        mask = np.zeros((81, 81))
+        valid_moves_dict = {}
+
+        for move in self.board.legal_moves:
+            mask[move.from_square, move.to_square] = 1
+            index = 81 * (move.from_square) + (move.to_square)
+            valid_moves_dict[index] = move
+
+        return mask, valid_moves_dict
 
     @staticmethod
     def _get_piece_name(piece_type: int) -> str:
