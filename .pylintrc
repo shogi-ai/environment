@@ -6,8 +6,12 @@
 # E1101: Module 'pygame' has no 'init' member (no-member)
 # W0718: Catching too general exception Exception (broad-exception-caught)
 # R0902: Too many instance attributes (11/7) (too-many-instance-attributes)
+# C0103: Attribute name "" doesn't conform to snake_case naming style (invalid-name)
+# R0913: Too many arguments (9/5) (too-many-arguments)
+# R0914: Too many local variables (38/15) (too-many-locals)
+# R0915: Too many statements (57/50) (too-many-statements)
 
-disable = R1721, R1725, E1101, W0718, R0902
+disable = R1721, R1725, E1101, W0718, R0902, C0103, R0913, R0914, R0915
 
 # Set the maximum line length to 140 characters
 max-line-length=140
