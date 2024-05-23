@@ -186,7 +186,7 @@ class ShogiEnv(gym.Env):
             indices.append(print_bitboard(piece, pieces_in_board))
 
         return (np.array(indices),)
-    
+
     def get_state(self):
         return self._get_observation()
 
