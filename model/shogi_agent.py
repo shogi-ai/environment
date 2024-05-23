@@ -135,7 +135,7 @@ class ShogiAgent:
         return self.get_move_index(chosen_move), chosen_move, current_state, valid_moves
 
     # Decay epsilon (exploration rate)
-    def adaptiveEGreedy(self):
+    def adaptive_e_greedy(self):
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
 
     # Save trained model
@@ -143,7 +143,6 @@ class ShogiAgent:
         torch.save(self.target_network.state_dict(), path)
 
     def learn_experience_replay(self, debug=False):
-
         # if memory does not have enough sample to fill a batch, return
         if len(self.memory) < self.batch_size:
             return
