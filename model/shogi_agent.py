@@ -1,17 +1,45 @@
+"""
+Agent for playing Shogi using a Deep Q-Network (DQN). Handles model initialization,
+action selection, memory management, and training using experience replay.
+"""
+
 import random
+import torch
+from torch import nn
+import torch.nn.functional as F
+import numpy as np
 
 from model.deep_q_network import DQN
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-import numpy as np
-
 
 class ShogiAgent:
+    """
+    Agent for playing Shogi using a Deep Q-Network (DQN). Handles model initialization,
+    action selection, memory management, and training using experience replay.
+
+    Attributes:
+        epsilon (float): Exploration rate for epsilon-greedy policy.
+        epsilon_decay (float): Decay rate for epsilon.
+        epsilon_min (float): Minimum value for epsilon.
+        gamma (float): Discount factor for future rewards.
+        learning_rate (float): Learning rate for the optimizer.
+        MEMORY_SIZE (int): Maximum size of the replay memory.
+        MAX_PRIORITY (float): Maximum priority value for memory sampling.
+        memory (list): Replay memory.
+        batch_size (int): Size of the mini-batch for training.
+        q_network (DQN): Deep Q-Network for action-value function approximation.
+        target_network (DQN): Target network for stabilizing training.
+        loss_function (nn.Module): Loss function for training the network.
+        optimizer (torch.optim.Optimizer): Optimizer for training the network.
+    """
 
     def __init__(self, input_model_path=None):
+        """
+        Initializes the ShogiAgent with parameters, networks, loss function, and optimizer.
+
+        Args:
+            input_model_path (str, optional): Path to the pre-trained model. Defaults to None.
+        """
         self.epsilon = 1
         self.epsilon_decay = 0.99
         self.epsilon_min = 0.1
@@ -31,13 +59,22 @@ class ShogiAgent:
             self.q_network.load_state_dict(torch.load(input_model_path))
 
         self.loss_function = nn.MSELoss()
-
         self.optimizer = torch.optim.Adam(
             self.target_network.parameters(), lr=self.learning_rate
         )
 
-    def get_move_index(self, move):
-        index = 81 * (move.from_square) + (move.to_square)
+    @staticmethod
+    def get_move_index(move):
+        """
+        Converts a move to an index.
+
+        Args:
+            move: A move object with from_square and to_square attributes.
+
+        Returns:
+            int: Index representing the move.
+        """
+        index = 81 * move.from_square + move.to_square
         return index
 
     def remember(
@@ -51,15 +88,24 @@ class ShogiAgent:
         valid_moves,
         next_valid_moves,
     ):
-        # if memory is full, we delete the least priority element
-        if len(self.memory) >= self.MEMORY_SIZE:
+        """
+        Stores a transition in the replay memory.
 
+        Args:
+            priority (float): Priority of the transition.
+            state (np.ndarray): Current state.
+            action (int): Action taken.
+            reward (float): Reward received.
+            next_state (np.ndarray): Next state.
+            done (bool): Whether the episode is done.
+            valid_moves (torch.Tensor): Valid moves in the current state.
+            next_valid_moves (torch.Tensor): Valid moves in the next state.
+        """
+        if len(self.memory) >= self.MEMORY_SIZE:
             min_value = self.MAX_PRIORITY
             min_index = 0
 
             for i, n in enumerate(self.memory):
-
-                # priority is stored in the first position of the tuple
                 if n[0] < min_value:
                     min_value = n[0]
                     min_index = i
@@ -79,22 +125,24 @@ class ShogiAgent:
             )
         )
 
-    # Take a board as input and return a valid move defined as tuple (start square, end square)
     def select_action(self, env):
+        """
+        Selects an action using an epsilon-greedy policy.
 
-        # get valid moves
+        Args:
+            env: Environment object with mask_and_valid_moves and get_state methods.
+
+        Returns:
+            tuple: Move index, chosen move, current state, valid moves.
+        """
         valid_moves, valid_move_dict = env.mask_and_valid_moves()
         valid_moves_tensor = torch.from_numpy(valid_moves).float().unsqueeze(0)
         current_state = env.get_state()[0]
         current_state_tensor = torch.from_numpy(current_state).float().unsqueeze(0)
         valid_moves_tensor = valid_moves_tensor.view(current_state_tensor.size(0), -1)
 
-        # with probability epsilon = Explore
         if random.uniform(0, 1) <= self.epsilon:
-
             r = random.uniform(0, 1)
-
-            # inside exploration with probability 10% choose best move from policy network
             if r <= 0.1:
                 policy_values = self.target_network(
                     current_state_tensor, valid_moves_tensor
@@ -104,48 +152,48 @@ class ShogiAgent:
                     chosen_move = valid_move_dict[chosen_move_index]
                 else:
                     chosen_move = env.sample_action()
-
-            # with probability 90% choose a random move
             else:
                 chosen_move = random.choice(list(valid_move_dict.values()))
-
-        # with probability 1 - epsilon = Exploit
         else:
-
-            # during inference we don't need to compute gradients
             with torch.no_grad():
-
-                # predict rewards for each valid move in the current state. valid_moves_tensor is the mask!
                 policy_values = self.target_network(
                     current_state_tensor, valid_moves_tensor
                 )
-
-                # take the move index with the highest predicted reward
                 chosen_move_index = int(policy_values.max(1)[1].view(1, 1))
-
-                # if move is valid:
                 if chosen_move_index in valid_move_dict:
                     chosen_move = valid_move_dict[chosen_move_index]
-
-                # if move is NOT valid, choose random move
-                # this can happen if all valid moves have predicted values 0 or negative
                 else:
                     chosen_move = env.sample_action()
 
         return self.get_move_index(chosen_move), chosen_move, current_state, valid_moves
 
-    # Decay epsilon (exploration rate)
     def adaptive_e_greedy(self):
+        """
+        Decays the exploration rate epsilon.
+        """
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
 
-    # Save trained model
     def save_model(self, path):
+        """
+        Saves the model parameters to the specified path.
+
+        Args:
+            path (str): Path to save the model.
+        """
         torch.save(self.target_network.state_dict(), path)
 
     def learn_experience_replay(self, debug=False):
-        # if memory does not have enough sample to fill a batch, return
+        """
+        Trains the network using experience replay.
+
+        Args:
+            debug (bool, optional): If True, prints debug information. Defaults to False.
+
+        Returns:
+            float: The loss value.
+        """
         if len(self.memory) < self.batch_size:
-            return
+            return 0
 
         # get priorities from the first element in the memory samples tuple
         priorities = [x[0] for x in self.memory]

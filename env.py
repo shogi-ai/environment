@@ -92,7 +92,9 @@ class ShogiEnv(gym.Env):
             """Select a random move"""
             # Move to random legal position
             generator = self.board.generate_legal_moves()
-            piece_legal_moves = [move for move in generator if move.from_square != None]
+            piece_legal_moves = [
+                move for move in generator if move.from_square is not None
+            ]
 
             # No legal moves for this piece
             if len(piece_legal_moves) == 0:
@@ -188,6 +190,7 @@ class ShogiEnv(gym.Env):
         return (np.array(indices),)
 
     def get_state(self):
+        """Get the current observation"""
         return self._get_observation()
 
     def render(self):
@@ -208,11 +211,11 @@ class ShogiEnv(gym.Env):
         valid_moves_dict = {}
 
         generator = self.board.generate_legal_moves()
-        piece_legal_moves = [move for move in generator if move.from_square != None]
+        piece_legal_moves = [move for move in generator if move.from_square is not None]
 
         for move in piece_legal_moves:
             mask[move.from_square, move.to_square] = 1
-            index = 81 * (move.from_square) + (move.to_square)
+            index = 81 * move.from_square + move.to_square
             valid_moves_dict[index] = move
 
         return mask, valid_moves_dict
