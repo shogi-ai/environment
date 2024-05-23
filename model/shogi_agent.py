@@ -272,7 +272,8 @@ class ShogiAgent:
 
         # target values are what we want the network to predict (our actual values in the loss function)
         # target values = reward + max_reward_in_next_state * gamma
-        # gamma is the discount factor and tells the agent whether to prefer long term rewards or immediate rewards. 0 = greedy, 1 = long term
+        # gamma is the discount factor and tells the agent whether to prefer long term rewards or
+        # immediate rewards. 0 = greedy, 1 = long term
         max_reward_in_next_state = torch.zeros(self.batch_size, dtype=torch.double)
 
         with torch.no_grad():
