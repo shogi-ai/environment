@@ -3,6 +3,7 @@ Agent for playing Shogi using a Deep Q-Network (DQN). Handles model initializati
 action selection, memory management, and training using experience replay.
 """
 
+import os
 import random
 import torch
 from torch import nn
@@ -33,12 +34,9 @@ class ShogiAgent:
         optimizer (torch.optim.Optimizer): Optimizer for training the network.
     """
 
-    def __init__(self, input_model_path=None):
+    def __init__(self):
         """
         Initializes the ShogiAgent with parameters, networks, loss function, and optimizer.
-
-        Args:
-            input_model_path (str, optional): Path to the pre-trained model. Defaults to None.
         """
         self.epsilon = 1
         self.epsilon_decay = 0.99
@@ -53,10 +51,6 @@ class ShogiAgent:
 
         self.q_network = DQN()
         self.target_network = self.q_network
-
-        if input_model_path is not None:
-            self.target_network.load_state_dict(torch.load(input_model_path))
-            self.q_network.load_state_dict(torch.load(input_model_path))
 
         self.loss_function = nn.MSELoss()
         self.optimizer = torch.optim.Adam(
@@ -136,34 +130,21 @@ class ShogiAgent:
             tuple: Move index, chosen move, current state, valid moves.
         """
         valid_moves, valid_move_dict = env.mask_and_valid_moves()
-        valid_moves_tensor = torch.from_numpy(valid_moves).float().unsqueeze(0)
         current_state = env.get_state()[0]
-        current_state_tensor = torch.from_numpy(current_state).float().unsqueeze(0)
-        valid_moves_tensor = valid_moves_tensor.view(current_state_tensor.size(0), -1)
 
         if random.uniform(0, 1) <= self.epsilon:
-            r = random.uniform(0, 1)
-            if r <= 0.1:
-                policy_values = self.target_network(
-                    current_state_tensor, valid_moves_tensor
-                )
-                chosen_move_index = int(policy_values.max(1)[1].view(1, 1))
-                if chosen_move_index in valid_move_dict:
-                    chosen_move = valid_move_dict[chosen_move_index]
-                else:
-                    chosen_move = env.sample_action()
-            else:
-                chosen_move = random.choice(list(valid_move_dict.values()))
+            valid_moves_tensor = torch.from_numpy(valid_moves).float().unsqueeze(0)
+            current_state_tensor = torch.from_numpy(current_state).float().unsqueeze(0)
+            valid_moves_tensor = valid_moves_tensor.view(
+                current_state_tensor.size(0), -1
+            )
+            policy_values = self.target_network(
+                current_state_tensor, valid_moves_tensor
+            )
+            chosen_move_index = int(policy_values.max(1)[1].view(1, 1))
+            chosen_move = valid_move_dict[chosen_move_index]
         else:
-            with torch.no_grad():
-                policy_values = self.target_network(
-                    current_state_tensor, valid_moves_tensor
-                )
-                chosen_move_index = int(policy_values.max(1)[1].view(1, 1))
-                if chosen_move_index in valid_move_dict:
-                    chosen_move = valid_move_dict[chosen_move_index]
-                else:
-                    chosen_move = env.sample_action()
+            chosen_move = env.sample_action()
 
         return self.get_move_index(chosen_move), chosen_move, current_state, valid_moves
 
@@ -173,7 +154,7 @@ class ShogiAgent:
         """
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
 
-    def save_model(self, path):
+    def save_model(self, path: str):
         """
         Saves the model parameters to the specified path.
 
@@ -181,6 +162,18 @@ class ShogiAgent:
             path (str): Path to save the model.
         """
         torch.save(self.target_network.state_dict(), path)
+
+    def get_model(self, path: str):
+        """
+        Get the model parameters from the specified path.
+
+        Args:
+            path (str): Get the model.
+        """
+        os.makedirs(path, exist_ok=True)
+        if os.path.isfile(path):
+            self.target_network.load_state_dict(torch.load(path))
+            self.q_network.load_state_dict(torch.load(path))
 
     def learn_experience_replay(self, debug=False):
         """
