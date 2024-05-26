@@ -102,10 +102,6 @@ class ShogiAgent:
                 current_state_tensor, valid_moves_tensor
             )
             chosen_move_index = int(policy_values.max(1)[1].view(1, 1))
-            if chosen_move_index not in valid_move_dict.keys():
-                print(chosen_move_index)
-            if chosen_move_index == 0:
-                print("Wrong")
             chosen_move = valid_move_dict[chosen_move_index]
         else:
             chosen_move = env.sample_action()
