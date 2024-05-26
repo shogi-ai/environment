@@ -6,7 +6,10 @@ import shogi
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
+from shogi import Move
 
+from exceptions.illegal_move import IllegalMoveException
+from exceptions.no_legal_moves import NoMovesException
 from reward_table import PIECE_REWARDS, CHECKMATE, STALEMATE
 
 
@@ -29,7 +32,7 @@ class ShogiEnv(gym.Env):
         reset: Reset the environment to its initial state.
         sample_action: Sample a random legal move.
         step: Take a step in the environment based on the action.
-        _get_observation: Get the current observation of the Shogi board.
+        get_observation: Get the current observation of the Shogi board.
         render: Render the current state of the Shogi board.
         mask_and_valid_moves: Get the mask and valid moves for the current player.
     """
@@ -63,7 +66,7 @@ class ShogiEnv(gym.Env):
         *,
         seed: int | None = None,
         options: dict[str, any] | None = None,
-    ):
+    ) -> np.array:
         """
         Reset the environment to its initial state.
 
@@ -74,41 +77,23 @@ class ShogiEnv(gym.Env):
             options: Additional options (not used).
 
         Returns:
-            tuple: Initial observation.
+            numpy array: Initial observation.
         """
         self.board = shogi.Board()
         self.move = 0
-        return self._get_observation()
+        return self.get_observation()
 
-    def sample_action(self):
+    def sample_action(self) -> Move:
         """
         Sample a random legal move for the specified player.
 
         Returns:
             shogi.Move: Random legal move for the specified player.
         """
+        legal_moves = self.get_legal_moves()
+        return random.choice(legal_moves)
 
-        def select_move():
-            """Select a random move"""
-            # Move to random legal position
-            generator = self.board.generate_legal_moves()
-            piece_legal_moves = [
-                move for move in generator if move.from_square is not None
-            ]
-
-            # No legal moves for this piece
-            if len(piece_legal_moves) == 0:
-                return None
-
-            # Return random legal move
-            return random.choice(piece_legal_moves)
-
-        while True:
-            piece_to = select_move()
-            if piece_to is not None:
-                return piece_to
-
-    def step(self, action: shogi.Move):
+    def step(self, action: Move) -> (np.array, float, bool, bool, dict):
         """
         Take a step in the environment based on the action.
 
@@ -119,7 +104,7 @@ class ShogiEnv(gym.Env):
             tuple: Tuple containing the next observation, reward, termination status, truncation status, and additional info.
         """
         if action not in self.board.legal_moves:
-            raise ValueError("Illegal move")
+            raise IllegalMoveException()
 
         self.move += 1
         reward = 0.0
@@ -129,24 +114,23 @@ class ShogiEnv(gym.Env):
         piece = self.board.piece_at(action.to_square)
         if piece:
             piece_name = self._get_piece_name(piece.piece_type)
-            reward = PIECE_REWARDS[piece_name]
+            reward += PIECE_REWARDS[piece_name]
 
         self.board.push(action)
 
         if self.move >= self.max_moves:
             truncated = True
 
-        # Direct if game is won? reward + 1, terminated = True
         if self.board.is_checkmate():
-            reward = CHECKMATE
+            reward += CHECKMATE
             terminated = True
         elif self.board.is_stalemate():
-            reward = STALEMATE
+            reward += STALEMATE
             terminated = True
 
-        return self._get_observation(), reward, terminated, truncated, {}
+        return self.get_observation(), reward, terminated, truncated, {}
 
-    def _get_observation(self):
+    def get_observation(self) -> np.array:
         """
         Get the current bitboard of the Shogi board.
 
@@ -187,11 +171,7 @@ class ShogiEnv(gym.Env):
                 continue
             indices.append(print_bitboard(piece, pieces_in_board))
 
-        return (np.array(indices),)
-
-    def get_state(self):
-        """Get the current observation"""
-        return self._get_observation()
+        return np.array(indices)
 
     def render(self):
         """
@@ -199,26 +179,6 @@ class ShogiEnv(gym.Env):
         """
         print("=" * 25)
         print(self.board)
-
-    def mask_and_valid_moves(self):
-        """
-        Get the mask and valid moves for the current player.
-
-        Returns:
-            tuple: Tuple containing the mask and valid moves for the current player.
-        """
-        mask = np.zeros((81, 81))
-        valid_moves_dict = {}
-
-        generator = self.board.generate_legal_moves()
-        piece_legal_moves = [move for move in generator if move.from_square is not None]
-
-        for move in piece_legal_moves:
-            mask[move.from_square, move.to_square] = 1
-            index = 81 * move.from_square + move.to_square
-            valid_moves_dict[index] = move
-
-        return mask, valid_moves_dict
 
     @staticmethod
     def _get_piece_name(piece_type: int) -> str:
@@ -249,3 +209,10 @@ class ShogiEnv(gym.Env):
         ]
         piece = piece_types[piece_type - 1]
         return piece
+
+    def get_legal_moves(self) -> list[Move]:
+        generator = self.board.generate_legal_moves()
+        legal_moves = [move for move in generator if move.from_square is not None]
+        if len(legal_moves) == 0:
+            raise NoMovesException()
+        return legal_moves
