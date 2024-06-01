@@ -7,14 +7,13 @@ import os
 import random
 
 import numpy as np
-import torch
 from shogi import Move
+import torch
+import torch.nn.functional as F
+from torch.utils.data import Dataset
 
 from src.environment.env import ShogiEnv
 from src.agent.deep_q_network import DQN
-import torch.nn.functional as F
-
-from torch.utils.data import Dataset
 
 
 class ReplayMemory(Dataset):
@@ -31,6 +30,9 @@ class ReplayMemory(Dataset):
 
     def sample(self, batch_size):
         return random.sample(self.memory, batch_size)
+
+    def __getitem__(self, index):
+        return self.memory[index]
 
     def __len__(self):
         return len(self.memory)

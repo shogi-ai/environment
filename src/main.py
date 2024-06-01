@@ -13,6 +13,7 @@ gym.register(id="Shogi-v0", entry_point="environment.env:ShogiEnv")
 env: ShogiEnv = gym.make("Shogi-v0")
 agent = ShogiAgent()
 
+
 def play_game(environment: ShogiEnv, player: ShogiAgent) -> (float, bool, bool):
     losses = []
     rewards = []
@@ -30,19 +31,19 @@ def play_game(environment: ShogiEnv, player: ShogiAgent) -> (float, bool, bool):
 
         # Update the player
         player.adaptive_e_greedy()
-        new_state = env.get_observation()
         loss = player.train_model(
             mask_index,
             reward,
             (terminated or truncated),
             current_state,
-            new_state,
+            state,
         )
 
         rewards.append(reward)
         losses.append(loss)
 
     return rewards, terminated, truncated, losses
+
 
 start = time.time()
 reward_list, _terminated, _truncated, loss_list = play_game(env, agent)
