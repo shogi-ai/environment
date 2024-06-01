@@ -8,9 +8,9 @@ import gymnasium as gym
 from gymnasium import spaces
 from shogi import Move
 
-from exceptions.illegal_move import IllegalMoveException
-from exceptions.no_legal_moves import NoMovesException
-from reward_table import PIECE_REWARDS, CHECKMATE, STALEMATE
+from src.environment.exceptions.illegal_move import IllegalMoveException
+from src.environment.exceptions.no_legal_moves import NoMovesException
+from src.environment.reward_table import PIECE_REWARDS, CHECKMATE, STALEMATE
 
 
 class ShogiEnv(gym.Env):

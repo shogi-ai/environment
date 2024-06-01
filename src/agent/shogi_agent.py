@@ -8,9 +8,32 @@ import random
 
 import numpy as np
 import torch
+from shogi import Move
 
-from env import ShogiEnv
-from model.deep_q_network import DQN
+from src.environment.env import ShogiEnv
+from src.agent.deep_q_network import DQN
+import torch.nn.functional as F
+
+from torch.utils.data import Dataset
+
+
+class ReplayMemory(Dataset):
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.memory = []
+        self.position = 0
+
+    def push(self, state, action, reward, next_state, done):
+        if len(self.memory) < self.capacity:
+            self.memory.append(None)
+        self.memory[self.position] = (state, action, reward, next_state, done)
+        self.position = (self.position + 1) % self.capacity
+
+    def sample(self, batch_size):
+        return random.sample(self.memory, batch_size)
+
+    def __len__(self):
+        return len(self.memory)
 
 
 class ShogiAgent:
@@ -35,12 +58,17 @@ class ShogiAgent:
         self.epsilon_decay = 0.99
         self.epsilon_min = 0.1
         self.learning_rate = 1e-03
+        self.batch_size = 64
+        self.gamma = 0.99  # Discount factor
+        self.memory_capacity = 10000
 
-        self.target_network = DQN()
+        self.q_network = DQN()
+        self.target_network = self.q_network
 
         self.optimizer = torch.optim.Adam(
             self.target_network.parameters(), lr=self.learning_rate
         )
+        self.memory = ReplayMemory(self.memory_capacity)
 
     def reset(self):
         self.epsilon = 1
@@ -79,7 +107,7 @@ class ShogiAgent:
 
         return mask, valid_moves_dict
 
-    def select_action(self, env: ShogiEnv):
+    def select_action(self, env: ShogiEnv) -> (Move, int):
         """
         Selects an action using an epsilon-greedy policy.
 
@@ -102,11 +130,16 @@ class ShogiAgent:
                 current_state_tensor, valid_moves_tensor
             )
             chosen_move_index = int(policy_values.max(1)[1].view(1, 1))
-            chosen_move = valid_move_dict[chosen_move_index]
+            try:
+                chosen_move = valid_move_dict[chosen_move_index]
+            except Exception:
+                chosen_move = env.sample_action()
+                chosen_move_index = 81 * chosen_move.from_square + chosen_move.to_square
         else:
             chosen_move = env.sample_action()
+            chosen_move_index = 81 * chosen_move.from_square + chosen_move.to_square
 
-        return chosen_move
+        return chosen_move, chosen_move_index
 
     def adaptive_e_greedy(self):
         """
@@ -133,3 +166,36 @@ class ShogiAgent:
         if os.path.isfile(path):
             model_dict = torch.load(path)
             self.target_network.load_state_dict(model_dict)
+
+    def train_model(self, action, reward, done, current_state, next_state) -> float:
+        self.memory.push(current_state, action, reward, next_state, done)
+
+        if len(self.memory) < self.batch_size:
+            return 0
+
+        transitions = self.memory.sample(self.batch_size)
+        batch = list(zip(*transitions))
+
+        state_batch = torch.tensor(batch[0], dtype=torch.float32)
+        action_batch = torch.tensor(batch[1], dtype=torch.int64)
+        reward_batch = torch.tensor(batch[2], dtype=torch.float32)
+        next_state_batch = torch.tensor(batch[3], dtype=torch.float32)
+        done_batch = torch.tensor(batch[4], dtype=torch.float32)
+
+        state_action_values = self.q_network(state_batch).gather(
+            1, action_batch.unsqueeze(1)
+        )
+
+        next_state_values = self.target_network(next_state_batch).max(1)[0].detach()
+        expected_state_action_values = (
+            next_state_values * self.gamma * (1 - done_batch)
+        ) + reward_batch
+
+        loss = F.mse_loss(
+            state_action_values, expected_state_action_values.unsqueeze(1)
+        )
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return float(loss)
