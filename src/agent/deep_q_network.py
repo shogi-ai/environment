@@ -4,9 +4,8 @@ predictions. This model includes convolutional layers, batch normalization,
 and fully connected layers, with an optional masking layer.
 """
 
+import torch
 from torch import nn
-
-from model.mask_layer import MaskLayer
 
 
 class DQN(nn.Module):
@@ -50,7 +49,6 @@ class DQN(nn.Module):
 
         self.fc1 = nn.Linear(128 * 9 * 9, 128 * 81)
         self.fc2 = nn.Linear(128 * 81, 81 * 81)
-        self.mask = MaskLayer()
 
     def forward(self, x, mask=None):
         """
@@ -72,6 +70,6 @@ class DQN(nn.Module):
         x = self.fc2(x)
 
         if mask is not None:
-            x = self.mask(x, mask)
+            x = torch.mul(x, mask)
 
         return x
