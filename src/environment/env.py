@@ -155,21 +155,35 @@ class ShogiEnv(gym.Env):
             "+r",
         ]
         pieces_in_board = [self.board.piece_at(i) for i in range(81)]
+        pieces_in_hand = self.board.pieces_in_hand
         indices = []
 
-        def print_bitboard(piece, pieces_in_board):
+        def print_bitboard(piece, pieces_in_board, pieces_in_hand):
             output = []
-            for _, x in enumerate(pieces_in_board):
-                if str(x).lower() == piece:
-                    output.append(1)
-                else:
-                    output.append(0)
-            return np.reshape(output, (9, 9))
+
+            def append_pieces(pieces):
+                white_pieces = []
+                black_pieces = []
+                for _, x in enumerate(pieces):
+                    if str(x).lower() == piece:
+                        if str(x).isupper():
+                            white_pieces.append(1)
+                        else:
+                            black_pieces.append(1)
+                    else:
+                        white_pieces.append(0)
+                        black_pieces.append(0)
+                return np.reshape(white_pieces, (9, 9)), np.reshape(black_pieces, (9, 9))
+            
+            output.append(append_pieces(pieces_in_board))
+            output.append(append_pieces(pieces_in_hand))
+
+            return output
 
         for piece in piece_symbols:
             if piece == "":
                 continue
-            indices.append(print_bitboard(piece, pieces_in_board))
+            indices.append(print_bitboard(piece, pieces_in_board, pieces_in_hand))
 
         return np.array(indices)
 

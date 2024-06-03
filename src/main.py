@@ -46,6 +46,8 @@ def play_game(environment: ShogiEnv, player: ShogiAgent) -> (float, bool, bool):
 
 
 start = time.time()
-reward_list, _terminated, _truncated, loss_list = play_game(env, agent)
+# reward_list, _terminated, _truncated, loss_list = play_game(env, agent)
+env.render()
+print(env.get_observation())
 end = time.time()
 print(end - start)
