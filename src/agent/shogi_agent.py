@@ -11,38 +11,9 @@ from shogi import Move
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.utils.data import Dataset
 
 from src.environment.env import ShogiEnv
 from src.agent.deep_q_network import DQN
-
-
-class ReplayMemory(Dataset):
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.memory = []
-        self.position = 0
-
-    def push(self, state, action, reward, next_state, done):
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
-        self.memory[self.position] = (state, action, reward, next_state, done)
-        self.position = (self.position + 1) % self.capacity
-
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
-
-    def __getitem__(self, index):
-        return self.memory[index]
-
-    def __len__(self):
-        return len(self.memory)
-
-    def __setitem__(self, key, value):
-        self.memory[key] = value
-
-    def __delitem__(self, key):
-        self.memory.__delitem__(key)
 
 
 class ShogiAgent:
@@ -66,21 +37,22 @@ class ShogiAgent:
         self.epsilon = 1
         self.epsilon_decay = 0.99
         self.epsilon_min = 0.1
+
+        self.gamma = 0.5
         self.learning_rate = 1e-03
+
+        self.MEMORY_SIZE = 512
+        self.MAX_PRIORITY = 1e06
+        self.memory = []
         self.batch_size = 64
-        self.gamma = 0.99  # Discount factor
-        self.memory_capacity = 10000
 
         self.q_network = DQN()
         self.target_network = self.q_network
 
-        self.MEMORY_SIZE = 512
-        self.MAX_PRIORITY = 1e06
         self.loss_function = nn.MSELoss()
         self.optimizer = torch.optim.Adam(
             self.target_network.parameters(), lr=self.learning_rate
         )
-        self.memory = ReplayMemory(self.memory_capacity)
 
     def reset(self):
         self.epsilon = 1
@@ -194,13 +166,14 @@ class ShogiAgent:
             min_value = self.MAX_PRIORITY
             min_index = 0
 
-            for i, n in enumerate(self.memory.memory):
+            for i, n in enumerate(self.memory):
                 if n[0] < min_value:
                     min_value = n[0]
                     min_index = i
 
             del self.memory[min_index]
-        self.memory.memory.append(
+
+        self.memory.append(
             (
                 priority,
                 action,

@@ -15,7 +15,7 @@ def game(environment: ShogiEnv, agent: ShogiAgent) -> list[ActionTaken]:
         initial_moves, _ = agent.mask_and_valid_moves(environment)
 
         # Take action
-        action, _ = agent.select_action(environment)
+        action, mask_index = agent.select_action(environment)
         state, reward, terminated, truncated, _ = environment.step(action)
 
         # Get new possible moves
@@ -24,7 +24,7 @@ def game(environment: ShogiEnv, agent: ShogiAgent) -> list[ActionTaken]:
         # Update the player
         ai_action = ActionTaken(
             priority=reward,
-            action=action,
+            action=mask_index,
             reward=reward,
             terminated=terminated,
             truncated=truncated,

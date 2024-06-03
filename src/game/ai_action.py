@@ -10,19 +10,19 @@ class ActionTaken:
         terminated: bool,
         truncated: bool,
         current_state: np.array,
-        current_moves: int,
+        current_moves: np.array,
         next_state: np.array,
-        next_moves: int,
+        next_moves: np.array,
     ):
         self.priority: int = priority
         self.action: int = action
         self.reward: float = reward
         self.terminated: bool = terminated
         self.truncated: bool = truncated
-        self.current_state = current_state
-        self.current_moves = current_moves
-        self.next_state = next_state
-        self.next_moves = next_moves
+        self.current_state: np.array = current_state
+        self.current_moves: np.array = current_moves
+        self.next_state: np.array = next_state
+        self.next_moves: np.array = next_moves
 
     def __str__(self):
         return self.priority
