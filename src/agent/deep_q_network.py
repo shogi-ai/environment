@@ -35,7 +35,7 @@ class DQN(nn.Module):
         """
         super(DQN, self).__init__()
 
-        self.conv1 = nn.Conv2d(14, 16, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(42, 16, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(16)
 
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
@@ -48,7 +48,7 @@ class DQN(nn.Module):
         self.bn4 = nn.BatchNorm2d(128)
 
         self.fc1 = nn.Linear(128 * 9 * 9, 128 * 81)
-        self.fc2 = nn.Linear(128 * 81, 81 * 81)
+        self.fc2 = nn.Linear(128 * 81, 81 * 88)
 
     def forward(self, x, mask=None):
         """
