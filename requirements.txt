@@ -2,7 +2,6 @@
 gymnasium==0.29.1
 python-shogi==1.1.1
 pygame==2.5.2
-python-dotenv==1.0.1
 
 # Model
 torch==2.3.0
@@ -13,8 +12,3 @@ jupyter==1.0.0
 # Linting
 pylint==3.1.0
 black==24.4.0
-
-# Database
-sqlalchemy==2.0.30
-mysql-connector-python==8.3.0
-# mysqlclient==2.2.4
