@@ -212,39 +212,51 @@ class ShogiAgent:
         reward_list = []
         done_list = []
         current_state_list = []
-        current_state_valid_moves_list = []
+        current_moves_list = []
         next_state_list = []
-        next_state_valid_moves_list = []
+        next_moves_list = []
         for (
-            _,
+            priority,
             action,
             reward,
             done,
             current_state,
-            current_state_valid_moves,
+            current_moves,
             next_state,
-            next_state_valid_moves,
+            next_moves,
         ) in minibatch:
-            action_list.append(action)
-            reward_list.append(reward)
-            done_list.append(done)
+
+            # bit state is the 16 bitboards of the state before the move
             current_state_list.append(current_state)
-            current_state_valid_moves_list.append(current_state_valid_moves)
+
+            current_moves = torch.from_numpy(current_moves.flatten())
+            current_moves_list.append(current_moves.unsqueeze(0))
+
+            # action is the index of the chosen move (out of 6561)
+            action_list.append([action])
+
+            # reward is the reward obtained by making the chosen move
+            reward_list.append(reward)
+
+            # done indicates if the game ended after making the chosen move
+            done_list.append(done)
 
             if not done:
+                # next_bit_state is the 16 bitboards of the state after the move
                 next_state_list.append(next_state)
-                next_state_valid_moves_list.append(next_state_valid_moves)
+
+                # next_state_valid_moves is a tensor containing the indexes of valid moves (out of 6561)
+                next_moves = torch.from_numpy(next_moves.flatten())
+                next_moves_list.append(next_moves.unsqueeze(0))
+
+        # state_valid_moves and next_state_valid_moves are already tensors, we just need to concat them
+        state_valid_move_tensor = torch.cat(current_moves_list, 0)
+        next_state_valid_move_tensor = torch.cat(next_moves_list, 0)
 
         # convert all lists to tensors
-        state_valid_move_tensor = torch.from_numpy(
-            np.array(current_state_valid_moves_list)
-        )
-        next_state_valid_move_tensor = torch.from_numpy(
-            np.array(next_state_valid_moves_list)
-        )
         state_tensor = torch.from_numpy(np.array(current_state_list)).float()
-        actions_tensor = torch.from_numpy(np.array(action_list, dtype=np.int64))
-        rewards_tensor = torch.from_numpy(np.array(reward_list)).float()
+        action_list_tensor = torch.from_numpy(np.array(action_list, dtype=np.int64))
+        reward_list_tensor = torch.from_numpy(np.array(reward_list)).float()
         next_state_tensor = torch.from_numpy(np.array(next_state_list)).float()
 
         # create a tensor with
@@ -255,7 +267,7 @@ class ShogiAgent:
         policy_action_values = self.q_network(state_tensor, state_valid_move_tensor)
 
         # get only the expected reward for the chosen move (to calculate loss against the actual reward)
-        policy_action_values = policy_action_values.gather(1, actions_tensor)
+        policy_action_values = policy_action_values.gather(1, action_list_tensor)
 
         # target values are what we want the network to predict (our actual values in the loss function)
         # target values = reward + max_reward_in_next_state * gamma
@@ -270,7 +282,9 @@ class ShogiAgent:
                 next_state_tensor, next_state_valid_move_tensor
             ).max(1)[0]
 
-        target_action_values = (max_reward_in_next_state * self.gamma) + rewards_tensor
+        target_action_values = (
+                                       max_reward_in_next_state * self.gamma
+                               ) + reward_list_tensor
         target_action_values = target_action_values.unsqueeze(1)
 
         # loss is computed between expected values (predicted) and target values (actual)
