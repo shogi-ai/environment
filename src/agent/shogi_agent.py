@@ -10,32 +10,10 @@ import numpy as np
 from shogi import Move
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset
+from torch import nn
 
 from src.environment.env import ShogiEnv
 from src.agent.deep_q_network import DQN
-
-
-class ReplayMemory(Dataset):
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.memory = []
-        self.position = 0
-
-    def push(self, state, action, reward, next_state, done):
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
-        self.memory[self.position] = (state, action, reward, next_state, done)
-        self.position = (self.position + 1) % self.capacity
-
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
-
-    def __getitem__(self, index):
-        return self.memory[index]
-
-    def __len__(self):
-        return len(self.memory)
 
 
 class ShogiAgent:
@@ -59,18 +37,22 @@ class ShogiAgent:
         self.epsilon = 1
         self.epsilon_decay = 0.99
         self.epsilon_min = 0.1
+
+        self.gamma = 0.5
         self.learning_rate = 1e-03
+
+        self.MEMORY_SIZE = 512
+        self.MAX_PRIORITY = 1e06
+        self.memory = []
         self.batch_size = 64
-        self.gamma = 0.99  # Discount factor
-        self.memory_capacity = 10000
 
         self.q_network = DQN()
         self.target_network = self.q_network
 
+        self.loss_function = nn.MSELoss()
         self.optimizer = torch.optim.Adam(
             self.target_network.parameters(), lr=self.learning_rate
         )
-        self.memory = ReplayMemory(self.memory_capacity)
 
     def reset(self):
         self.epsilon = 1
@@ -169,35 +151,158 @@ class ShogiAgent:
             model_dict = torch.load(path)
             self.target_network.load_state_dict(model_dict)
 
-    def train_model(self, action, reward, done, current_state, next_state) -> float:
-        self.memory.push(current_state, action, reward, next_state, done)
+    def remember(
+        self,
+        priority,
+        action,
+        reward,
+        done,
+        current_state,
+        current_state_valid_moves,
+        next_state,
+        next_state_valid_moves,
+    ):
+        if len(self.memory) >= self.MEMORY_SIZE:
+            min_value = self.MAX_PRIORITY
+            min_index = 0
 
+            for i, n in enumerate(self.memory):
+                if n[0] < min_value:
+                    min_value = n[0]
+                    min_index = i
+
+            del self.memory[min_index]
+
+        self.memory.append(
+            (
+                priority,
+                action,
+                reward,
+                done,
+                current_state,
+                current_state_valid_moves,
+                next_state,
+                next_state_valid_moves,
+            )
+        )
+
+    def train_model(self) -> float:
+        """
+        Trains the network using experience replay.
+        Returns:
+            float: The loss value.
+        """
         if len(self.memory) < self.batch_size:
             return 0
 
-        transitions = self.memory.sample(self.batch_size)
-        batch = list(zip(*transitions))
+        # get priorities from the first element in the memory samples tuple
+        priorities = [x[0] for x in self.memory]
 
-        state_batch = torch.tensor(batch[0], dtype=torch.float32)
-        action_batch = torch.tensor(batch[1], dtype=torch.int64)
-        reward_batch = torch.tensor(batch[2], dtype=torch.float32)
-        next_state_batch = torch.tensor(batch[3], dtype=torch.float32)
-        done_batch = torch.tensor(batch[4], dtype=torch.float32)
+        # the higher the priority, the more probable the sample will be included in the batch training
+        priorities_total = np.sum(priorities)
+        weights = priorities / priorities_total
 
-        state_action_values = self.q_network(state_batch).gather(
-            1, action_batch.unsqueeze(1)
+        # extract samples for the batch training
+        minibatch_indexes = np.random.choice(
+            range(len(self.memory)), size=self.batch_size, replace=False, p=weights
         )
+        minibatch = [self.memory[x] for x in minibatch_indexes]
 
-        next_state_values = self.target_network(next_state_batch).max(1)[0].detach()
-        expected_state_action_values = (
-            next_state_values * self.gamma * (1 - done_batch)
-        ) + reward_batch
+        action_list = []
+        reward_list = []
+        done_list = []
+        current_state_list = []
+        current_state_valid_moves_list = []
+        next_state_list = []
+        next_state_valid_moves_list = []
+        for (
+            _,
+            action,
+            reward,
+            done,
+            current_state,
+            current_state_valid_moves,
+            next_state,
+            next_state_valid_moves,
+        ) in minibatch:
+            action_list.append(action)
+            reward_list.append(reward)
+            done_list.append(done)
+            current_state_list.append(current_state)
+            current_state_valid_moves_list.append(current_state_valid_moves)
 
-        loss = F.mse_loss(
-            state_action_values, expected_state_action_values.unsqueeze(1)
+            if not done:
+                next_state_list.append(next_state)
+                next_state_valid_moves_list.append(next_state_valid_moves)
+
+        # convert all lists to tensors
+        state_valid_move_tensor = torch.from_numpy(
+            np.array(current_state_valid_moves_list)
         )
+        next_state_valid_move_tensor = torch.from_numpy(
+            np.array(next_state_valid_moves_list)
+        )
+        state_tensor = torch.from_numpy(np.array(current_state_list)).float()
+        actions_tensor = torch.from_numpy(np.array(action_list, dtype=np.int64))
+        rewards_tensor = torch.from_numpy(np.array(reward_list)).float()
+        next_state_tensor = torch.from_numpy(np.array(next_state_list)).float()
 
+        # create a tensor with
+        bool_array = np.array([not x for x in done_list])
+        not_done_mask = torch.tensor(bool_array, dtype=torch.bool)
+
+        # compute the expected rewards for each valid move
+        policy_action_values = self.q_network(state_tensor, state_valid_move_tensor)
+
+        # get only the expected reward for the chosen move (to calculate loss against the actual reward)
+        policy_action_values = policy_action_values.gather(1, actions_tensor)
+
+        # target values are what we want the network to predict (our actual values in the loss function)
+        # target values = reward + max_reward_in_next_state * gamma
+        # gamma is the discount factor and tells the agent whether to prefer long term rewards or
+        # immediate rewards. 0 = greedy, 1 = long term
+        max_reward_in_next_state = torch.zeros(self.batch_size, dtype=torch.double)
+
+        with torch.no_grad():
+
+            # if the state is final (done = True, not_done_mask = False) the max_reward_in_next_state stays 0
+            max_reward_in_next_state[not_done_mask] = self.target_network(
+                next_state_tensor, next_state_valid_move_tensor
+            ).max(1)[0]
+
+        target_action_values = (max_reward_in_next_state * self.gamma) + rewards_tensor
+        target_action_values = target_action_values.unsqueeze(1)
+
+        # loss is computed between expected values (predicted) and target values (actual)
+        loss = self.loss_function(policy_action_values, target_action_values)
+
+        # Update priorities of samples in memory based on size of error (higher error = higher priority)
+        for i in range(self.batch_size):
+            predicted_value = policy_action_values[i]
+            target_value = target_action_values[i]
+
+            # priority = mean squared error
+            priority = (
+                F.mse_loss(predicted_value, target_value, reduction="mean")
+                .detach()
+                .numpy()
+            )
+
+            # change priority of sample in memory
+            sample = list(self.memory[minibatch_indexes[i]])
+            sample[0] = priority
+            self.memory[minibatch_indexes[i]] = tuple(sample)
+
+        # clear gradients of all parameters from the previous training step
         self.optimizer.zero_grad()
+
+        # calculate the new gradients of the loss with respect to all the model parameters by traversing the network backwards
         loss.backward()
+
+        # adjust model parameters (weights, biases) according to computed gradients and learning rate
         self.optimizer.step()
+
+        self.target_network = self.q_network
+
+        # return loss so that we can plot loss by training step
         return float(loss)
