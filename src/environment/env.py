@@ -155,22 +155,53 @@ class ShogiEnv(gym.Env):
             "+r",
         ]
         pieces_in_board = [self.board.piece_at(i) for i in range(81)]
+        pieces_in_hand = self.board.pieces_in_hand
         indices = []
 
         def print_bitboard(piece, pieces_in_board):
-            output = []
+            white_pieces = []
+            black_pieces = []
             for _, x in enumerate(pieces_in_board):
                 if str(x).lower() == piece:
-                    output.append(1)
+                    if str(x).isupper():
+                        white_pieces.append(1)
+                        black_pieces.append(0)
+                    else:
+                        black_pieces.append(1)
+                        white_pieces.append(0)
                 else:
-                    output.append(0)
-            return np.reshape(output, (9, 9))
+                    white_pieces.append(0)
+                    black_pieces.append(0)
+            return np.reshape(white_pieces, (9, 9)), np.reshape(black_pieces, (9, 9))
+
+        def create_hand_bitboard(pieces_in_hand, index, is_black):
+            hand_indices = []
+            # Check for white pieces in hand
+            if pieces_in_hand[is_black][index] == 0:
+                hand_indices.append(np.zeros(81))
+            else:
+                for _ in range(pieces_in_hand[0][index]):
+                    hand_indices.append(1)
+                hand_indices.append(np.zeros(81 - len(pieces_in_hand)))
+            
+            return np.reshape(hand_indices, (9, 9))
+            
 
         for piece in piece_symbols:
             if piece == "":
                 continue
-            indices.append(print_bitboard(piece, pieces_in_board))
+            white_indices, black_indices = print_bitboard(piece, pieces_in_board)
+            indices.append(white_indices)
+            indices.append(black_indices)
 
+        # Add hand bitboards
+        for i in enumerate(piece_symbols[1:8]):
+            white_indices = create_hand_bitboard(pieces_in_hand, i, False)
+            black_indices = create_hand_bitboard(pieces_in_hand, i, True)
+            indices.append(white_indices)
+            indices.append(black_indices)
+
+            
         return np.array(indices)
 
     def render(self):

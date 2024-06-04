@@ -69,8 +69,26 @@ class ShogiAgent:
         Returns:
             int: Index representing the move.
         """
-        index = 81 * move.from_square + move.to_square
+        index = 81 * ShogiAgent.get_from_square(move) + move.to_square
         return index
+    
+    @staticmethod
+    def get_from_square(move):
+        """
+        Converts a move to an index.
+
+        Args:
+            move: A move object with from_square and to_square attributes.
+
+        Returns:
+            int: Index representing the move.
+        """
+        pieces = ["", "p", "l", "n", "s", "g", "b", "r"]
+        if(move.from_square == None):
+            # from_square max = 81
+            return 81 + pieces.index(move.drop_piece_type)
+            # now from_square max = 88
+        return move.from_square
 
     def mask_and_valid_moves(self, env: ShogiEnv) -> (np.array, dict):
         """
@@ -79,15 +97,14 @@ class ShogiAgent:
         Returns:
             tuple: Tuple containing the mask and valid moves for the current player.
         """
-        mask = np.zeros((81, 81))
+        mask = np.zeros((88, 81))
         valid_moves_dict = {}
 
         legal_moves = env.get_legal_moves()
 
         for move in legal_moves:
-            mask[move.from_square, move.to_square] = 1
-            index = 81 * move.from_square + move.to_square
-            valid_moves_dict[index] = move
+            mask[self.get_from_square(move), move.to_square] = 1
+            valid_moves_dict[self.get_move_index(move)] = move
 
         return mask, valid_moves_dict
 
@@ -118,10 +135,10 @@ class ShogiAgent:
                 chosen_move = valid_move_dict[chosen_move_index]
             except Exception:
                 chosen_move = env.sample_action()
-                chosen_move_index = 81 * chosen_move.from_square + chosen_move.to_square
+                chosen_move_index = 81 * self.get_from_square(chosen_move) + chosen_move.to_square
         else:
             chosen_move = env.sample_action()
-            chosen_move_index = 81 * chosen_move.from_square + chosen_move.to_square
+            chosen_move_index = 81 * self.get_from_square(chosen_move) + chosen_move.to_square
 
         return chosen_move, chosen_move_index
 
