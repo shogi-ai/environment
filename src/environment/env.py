@@ -243,7 +243,7 @@ class ShogiEnv(gym.Env):
 
     def get_legal_moves(self) -> list[Move]:
         generator = self.board.generate_legal_moves()
-        legal_moves = [move for move in generator if move.from_square is not None]
+        legal_moves = [move for move in generator]
         if len(legal_moves) == 0:
             raise NoMovesException()
         return legal_moves

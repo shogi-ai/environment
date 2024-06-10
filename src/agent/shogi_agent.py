@@ -83,10 +83,10 @@ class ShogiAgent:
         Returns:
             int: Index representing the move.
         """
-        pieces = ["", "p", "l", "n", "s", "g", "b", "r"]
+        # pieces = ["", "p", "l", "n", "s", "g", "b", "r"]
         if(move.from_square == None):
             # from_square max = 81
-            return 81 + pieces.index(move.drop_piece_type)
+            return 81 + move.drop_piece_type - 1
             # now from_square max = 88
         return move.from_square
 
