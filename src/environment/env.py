@@ -245,5 +245,5 @@ class ShogiEnv(gym.Env):
         generator = self.board.generate_legal_moves()
         legal_moves = [move for move in generator]
         if len(legal_moves) == 0:
-            raise NoMovesException()
+            return []
         return legal_moves
