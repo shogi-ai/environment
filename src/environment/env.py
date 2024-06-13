@@ -10,7 +10,7 @@ from shogi import Move
 
 from src.environment.exceptions.illegal_move import IllegalMoveException
 from src.environment.exceptions.no_legal_moves import NoMovesException
-from src.environment.reward_table import PIECE_REWARDS, CHECKMATE, STALEMATE
+from src.environment.reward_table import PIECE_REWARDS, CHECKMATE, STALEMATE, GAME_OVER
 
 
 class ShogiEnv(gym.Env):
@@ -119,6 +119,7 @@ class ShogiEnv(gym.Env):
         self.board.push(action)
 
         if self.move >= self.max_moves:
+            reward -= GAME_OVER
             truncated = True
 
         if self.board.is_checkmate():

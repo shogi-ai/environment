@@ -1,7 +1,8 @@
 """"Table with all the different rewards"""
 
 CHECKMATE = 200
-STALEMATE = 15
+STALEMATE = 100
+GAME_OVER = -150
 
 PIECE_REWARDS = {
     "PAWN": 1,
