@@ -1,8 +1,8 @@
 """"Table with all the different rewards"""
 
-CHECKMATE = 200
-STALEMATE = 100
-GAME_OVER = -150
+CHECKMATE = 500
+STALEMATE = 250
+GAME_OVER = 100
 
 PIECE_REWARDS = {
     "PAWN": 1,
@@ -12,7 +12,7 @@ PIECE_REWARDS = {
     "GOLD": 7,
     "BISHOP": 9,
     "ROOK": 10,
-    "KING": 200,
+    "KING": 500,
     "PROM_PAWN": 4,
     "PROM_LANCE": 6,
     "PROM_KNIGHT": 6,

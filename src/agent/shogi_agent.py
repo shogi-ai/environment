@@ -36,7 +36,7 @@ class ShogiAgent:
         """
         self.epsilon = 1
         self.epsilon_decay = 0.80 # 0.99
-        self.epsilon_min = 0.1 # 0.1
+        self.epsilon_min = 0.05 # 0.1
 
         self.gamma = 0.5
         self.learning_rate = 1e-03
@@ -182,6 +182,7 @@ class ShogiAgent:
         if os.path.isfile(path):
             model_dict = torch.load(path)
             self.target_network.load_state_dict(model_dict)
+            self.q_network.load_state_dict(model_dict)
 
     def remember(
         self,
@@ -233,6 +234,10 @@ class ShogiAgent:
         # the higher the priority, the more probable the sample will be included in the batch training
         priorities_total = np.sum(priorities)
         weights = priorities / priorities_total
+
+        # replace negative weights with 0
+        # if weights.min() < 0:
+        #     weights = np.maximum(weights, 0) / np.sum(np.maximum(weights, 0))
 
         # extract samples for the batch training
         minibatch_indexes = np.random.choice(

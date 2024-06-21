@@ -119,7 +119,7 @@ class ShogiEnv(gym.Env):
         self.board.push(action)
 
         if self.move >= self.max_moves:
-            reward -= GAME_OVER
+            # reward -= GAME_OVER
             truncated = True
 
         if self.board.is_checkmate():
